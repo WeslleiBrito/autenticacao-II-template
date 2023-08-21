@@ -5,6 +5,7 @@ import { SignupInputDTO, SignupOutputDTO } from "../dtos/user/signup.dto"
 import { BadRequestError } from "../errors/BadRequestError"
 import { NotFoundError } from "../errors/NotFoundError"
 import { TokenPayload, USER_ROLES, User } from "../models/User"
+import { HashManager } from "../services/HashManager"
 import { IdGenerator } from "../services/IdGenerator"
 import { TokenManager } from "../services/TokenManager"
 
@@ -12,13 +13,26 @@ export class UserBusiness {
   constructor(
     private userDatabase: UserDatabase,
     private idGenerator: IdGenerator,
-    private tokenManager: TokenManager
+    private tokenManager: TokenManager, 
+    private hashManager: HashManager
   ) { }
 
   public getUsers = async (
     input: GetUsersInputDTO
   ): Promise<GetUsersOutputDTO> => {
-    const { q } = input
+    const { q, token } = input
+
+    const payload = this.tokenManager.getPayload(token)
+
+    console.log(payload);
+    
+    if(!payload){
+      throw new BadRequestError("Token inválido.")
+    }
+
+    if(payload.role !== USER_ROLES.ADMIN){
+      throw new BadRequestError("Só admins podem ver os usuários.")
+    }
 
     const usersDB = await this.userDatabase.findUsers(q)
 
@@ -43,23 +57,18 @@ export class UserBusiness {
   public signup = async (
     input: SignupInputDTO
   ): Promise<SignupOutputDTO> => {
-    // const { id, name, email, password } = input
+
     const { name, email, password } = input
 
-    // const userDBExists = await this.userDatabase.findUserById(id)
-
-    // if (userDBExists) {
-    //   throw new BadRequestError("'id' já existe")
-    // }
-
-    console.log(this)
     const id = this.idGenerator.generate()
+
+    const hashedPassword = await this.hashManager.hash(password)
 
     const newUser = new User(
       id,
       name,
       email,
-      password,
+      hashedPassword,
       USER_ROLES.NORMAL, // só é possível criar users com contas normais
       new Date().toISOString()
     )
@@ -96,7 +105,9 @@ export class UserBusiness {
       throw new NotFoundError("'email' não encontrado")
     }
 
-    if (password !== userDB.password) {
+    const isPasswordValid = await this.hashManager.compare(password, userDB.password)
+
+    if (!isPasswordValid) {
       throw new BadRequestError("'email' ou 'password' incorretos")
     }
 

@@ -2,6 +2,7 @@ import z from "zod"
 import { ProductModel } from "../../models/Product"
 
 export interface GetProductsInputDTO {
+  token: string,
   q: string
 }
 
@@ -10,5 +11,6 @@ export interface GetProductsInputDTO {
 export type GetProductsOutputDTO = ProductModel[]
 
 export const GetProductsSchema = z.object({
+  token: z.string({required_error: "O token é obrigatório!"}).min(1),
   q: z.string().min(1).optional()
 }).transform(data => data as GetProductsInputDTO)

@@ -2,7 +2,7 @@ import z from "zod"
 import { ProductModel } from "../../models/Product"
 
 export interface CreateProductInputDTO {
-  // id: string,
+  token: string,
   name: string,
   price: number
 }
@@ -13,7 +13,7 @@ export interface CreateProductOutputDTO {
 }
 
 export const CreateProductSchema = z.object({
-  // id: z.string().min(1),
+  token: z.string({required_error: "O token é obrigatório!"}).min(1),
   name: z.string().min(2),
   price: z.number().gt(0)
 }).transform(data => data as CreateProductInputDTO)

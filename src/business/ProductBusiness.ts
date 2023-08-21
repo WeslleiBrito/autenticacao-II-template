@@ -3,18 +3,27 @@ import { CreateProductInputDTO, CreateProductOutputDTO } from "../dtos/product/c
 import { GetProductsInputDTO, GetProductsOutputDTO } from "../dtos/product/getProducts.dto"
 import { BadRequestError } from "../errors/BadRequestError"
 import { Product } from "../models/Product"
+import { USER_ROLES } from "../models/User"
 import { IdGenerator } from "../services/IdGenerator"
+import { TokenManager } from "../services/TokenManager"
 
 export class ProductBusiness {
   constructor(
     private productDatabase: ProductDatabase,
-    private idGenerator: IdGenerator
+    private idGenerator: IdGenerator,
+    private tokenManager: TokenManager
   ) { }
 
   public getProducts = async (
     input: GetProductsInputDTO
   ): Promise<GetProductsOutputDTO> => {
-    const { q } = input
+    const { q, token } = input
+    
+    const tokenIsValid = this.tokenManager.getPayload(token)
+
+    if(!tokenIsValid){
+      throw new BadRequestError("Token inválido.")
+    }
 
     const productsDB = await this.productDatabase.findProducts(q)
 
@@ -37,14 +46,18 @@ export class ProductBusiness {
   public createProduct = async (
     input: CreateProductInputDTO
   ): Promise<CreateProductOutputDTO> => {
-    // const { id, name, price } = input
-    const { name, price } = input
+ 
+    const { token, name, price } = input
 
-    // const productDBExists = await this.productDatabase.findProductById(id)
+    const tokenIsValid = this.tokenManager.getPayload(token)
 
-    // if (productDBExists) {
-    //   throw new BadRequestError("'id' já existe")
-    // }
+    if(!tokenIsValid){
+      throw new BadRequestError("Token inválido.")
+    }
+
+    if(tokenIsValid.role !== USER_ROLES.ADMIN){
+      throw new BadRequestError("O usuário não tem permissão para criar novos produtos.")
+    }
 
     const id = this.idGenerator.generate()
 
